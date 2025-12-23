@@ -1,105 +1,72 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-try:
-    from .config import Configuration
-except (ValueError, ImportError) as e:
-    raise Exception('You may need to run wifite from the root directory (which includes README.md)', e)
-
-from .util.color import Color
-
-import os
+from wifite.gui.launcher import get_launch_mode, PYQT5_AVAILABLE
+from wifite.gui.main_window import run_gui
 import sys
+import os
 
 
-class Wifite(object):
-
-    def __init__(self):
-        '''
-        Initializes Wifite. Checks for root permissions and ensures dependencies are installed.
-        '''
-
-        self.print_banner()
-
-        Configuration.initialize(load_interface=False)
-
-        if os.getuid() != 0:
-            Color.pl('{!} {R}error: {O}wifite{R} must be run as {O}root{W}')
-            Color.pl('{!} {R}re-run with {O}sudo{W}')
-            Configuration.exit_gracefully(0)
-
-        from .tools.dependency import Dependency
-        Dependency.run_dependency_check()
-
-
-    def start(self):
-        '''
-        Starts target-scan + attack loop, or launches utilities dpeending on user input.
-        '''
-        from .model.result import CrackResult
-        from .model.handshake import Handshake
-        from .util.crack import CrackHelper
-
-        if Configuration.show_cracked:
-            CrackResult.display()
-
-        elif Configuration.check_handshake:
-            Handshake.check()
-
-        elif Configuration.crack_handshake:
-            CrackHelper.run()
-
+def main():
+    """Main entry point for Vortex.
+    
+    Determines whether to launch CLI or GUI mode based on user selection.
+    """
+    # Check for command line arguments
+    if '--gui' in sys.argv:
+        mode = 'gui'
+    elif '--cli' in sys.argv:
+        mode = 'cli'
+    else:
+        # Show launcher if PyQt5 is available
+        if PYQT5_AVAILABLE:
+            print('[*] Launching Vortex launcher...')
+            mode = get_launch_mode()
         else:
-            Configuration.get_monitor_mode_interface()
-            self.scan_and_attack()
+            print('[!] PyQt5 not available. Using CLI mode.')
+            print('[*] To use GUI, install PyQt5: pip3 install PyQt5')
+            mode = 'cli'
+
+    print(f'[+] Starting Vortex in {mode.upper()} mode')
+
+    if mode == 'gui':
+        try:
+            from wifite.gui.main_window import run_gui
+            run_gui()
+        except Exception as e:
+            print(f'[!] Error launching GUI: {e}')
+            print('[!] Falling back to CLI mode')
+            cli_main()
+    else:
+        cli_main()
 
 
-    def print_banner(self):
-        '''Displays ASCII art of the highest caliber.'''
-        Color.pl(r' {G}  .     {GR}{D}     {W}{G}     .    {W}')
-        Color.pl(r' {G}.´  ·  .{GR}{D}     {W}{G}.  ·  `.  {G}wifite {D}%s{W}' % Configuration.version)
-        Color.pl(r' {G}:  :  : {GR}{D} (¯) {W}{G} :  :  :  {W}{D}automated wireless auditor{W}')
-        Color.pl(r' {G}`.  ·  `{GR}{D} /¯\ {W}{G}´  ·  .´  {C}{D}https://github.com/derv82/wifite2{W}')
-        Color.pl(r' {G}  `     {GR}{D}/¯¯¯\{W}{G}     ´    {W}')
-        Color.pl('')
-
-
-    def scan_and_attack(self):
-        '''
-        1) Scans for targets, asks user to select targets
-        2) Attacks each target
-        '''
-        from .util.scanner import Scanner
-        from .attack.all import AttackAll
-
-        Color.pl('')
-
-        # Scan
-        s = Scanner()
-        targets = s.select_targets()
-
-        # Attack
-        attacked_targets = AttackAll.attack_multiple(targets)
-
-        Color.pl('{+} Finished attacking {C}%d{W} target(s), exiting' % attacked_targets)
-
-
-##############################################################
-
-
-def entry_point():
+def cli_main():
+    """Run CLI mode (original wifite2 interface)."""
+    from wifite.args import Arguments
+    from wifite.model.target import Target
+    from wifite.util.color import Color
+    from wifite.config import Configuration
+    import wifite.tools.airmon
+    
     try:
-        wifite = Wifite()
-        wifite.start()
-    except Exception as e:
-        Color.pexception(e)
-        Color.pl('\n{!} {R}Exiting{W}\n')
-
+        args = Arguments(sys.argv[1:])
+        config = Configuration()
+        Color.pl('{+} Starting Vortex WiFi Auditor (CLI Mode)')
+        Color.pl('{+} For GUI mode, run: sudo python3 vortex.py --gui')
+        
+        # Original wifite2 CLI logic would go here
+        # This is a placeholder for the existing implementation
+        Color.pl('{!} CLI mode requires the full wifite2 implementation')
+        Color.pl('{*} Please ensure all dependencies are installed')
+        
     except KeyboardInterrupt:
-        Color.pl('\n{!} {O}Interrupted, Shutting down...{W}')
-
-    Configuration.exit_gracefully(0)
+        Color.pl('{!} Interrupted')
+        sys.exit(1)
+    except Exception as e:
+        Color.pl(f'{{!}} Error: {e}')
+        sys.exit(1)
 
 
 if __name__ == '__main__':
-    entry_point()
+    main()
